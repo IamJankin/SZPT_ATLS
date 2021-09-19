@@ -40,18 +40,22 @@ password = password
 
 #### 出行路径说明：
 
+支持出行路径、出校理由修改。
+
 ```
 [other]
 #是否修改出行路径，true/false
-#注意：true会允许重复提交，而false一天只能提交一次
+#true会允许重复提交申请，而false一天只能提交一次
 is_changePath = false
 #如果为true，则按照下面的路径申请，false则自动爬取上一次的路径申请
 MDDXXDZ = 目的地详细地址
 CXJTFS = 出行交通方式
+CXLY = 出校理由
 ```
 
 - **支持出行路径修改，is_changePath默认值为false，会自动爬取上一次的路径进行申请。**
-- **如果行程有变动，需要将is_changePath的值改为true，并修改地址及交通方式。**（日常行程没变动设置为false就好了）
+- **如果行程有变动，需要将is_changePath的值改为true，并修改出行路径、出现理由。**
+- **日常行程没变动设置为false就好了**
 
 **Example：**
 
@@ -60,6 +64,7 @@ CXJTFS = 出行交通方式
 is_changePath = true
 MDDXXDZ = 西丽
 CXJTFS = 步行
+CXLY = 吃饭
 ```
 
 
