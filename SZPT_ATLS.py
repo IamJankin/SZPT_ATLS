@@ -27,6 +27,7 @@ SAVE_INFO_POST_URL = 'https://ehall.szpt.edu.cn/publicappinternet/sys/emapflow/t
 #GET_SESSION_URL将返回一个包含随机sessionToken的登录页面
 GET_SESSION_URL = 'https://ehall.szpt.edu.cn:443/amp-auth-adapter/login?service=https://ehall.szpt.edu.cn:443/publicappinternet/sys/szptpubxslscxbb/*default/index.do?nodeId=0&taskId=0&processInstanceId=0&instId=0&defId=0&defKey=0'
 UPDATE_COOKIE_URL = 'https://ehall.szpt.edu.cn/publicappinternet/sys/itpub/MobileCommon/getMenuInfo.do'
+GET_LSH = 'https://ehall.szpt.edu.cn/publicappinternet/sys/szptpubxslscxbb/data/getSerialNumber.do'  #获取流水号
 #LOGIN_URL = GET_LOGIN_URL()    #下面调用GET_LOGIN_URL()获取登录URL
 
 # 请求头
@@ -186,20 +187,25 @@ def send_info():
 
     # 保存的参数
     response = opener.open(request)
-    data1 = json.loads(response.read().decode('utf-8'))
-    data1 = data1['datas']['queryUserTasks']['rows'][0]
+    data = json.loads(response.read().decode('utf-8'))
+    data = data['datas']['queryUserTasks']['rows'][0]
 
     date = time.strftime("%Y-%m-%d", time.localtime())
     is_changePath = config.getboolean("other", "is_changePath")
-    if(date == data1['REPORT_DATE'] and is_changePath == False):
+    if(date == data['REPORT_DATE'] and is_changePath == False):
         print('[-] 今日已经提交！')
     else:
         # 获取出校地址及交通工具
-        data2_url = 'https://ehall.szpt.edu.cn/publicappinternet/sys/szptpubxslscxbb/modules/apply/T_IT_XSLSCXBB_CXLJ_QUERY.do?INFO_WID=%s'%data1['WID']
-        request = urllib.request.Request(url=data2_url,method='POST', headers=header_getinfo)
+        CXLJ_URL = 'https://ehall.szpt.edu.cn/publicappinternet/sys/szptpubxslscxbb/modules/apply/T_IT_XSLSCXBB_CXLJ_QUERY.do?INFO_WID=%s'%data['WID']
+        request = urllib.request.Request(url=CXLJ_URL,method='POST', headers=header_getinfo)
         response = opener.open(request)
-        data2 = json.loads(response.read().decode('utf-8'))
-        data2 = data2['datas']['T_IT_XSLSCXBB_CXLJ_QUERY']['rows'][0]
+        CXLJ = json.loads(response.read().decode('utf-8'))  #出行路径
+        CXLJ = CXLJ['datas']['T_IT_XSLSCXBB_CXLJ_QUERY']['rows'][0]
+
+        #获取流水号LSH
+        request = urllib.request.Request(url=GET_LSH, method='POST', headers=header_getinfo)
+        response = opener.open(request)
+        LSH = response.read().decode('utf-8')
 
         # 删除多余字段
         temp_dict = ['WID', 'OFFICE_MOBILE', 'SFZSWTGY', 'SFQWQTXQ', 'LXCXLJ', 'ZZCL', 'PROCESSINSTANCEID', 'DEFID',
@@ -207,20 +213,22 @@ def send_info():
                      'NODEID', 'TASKID', 'NODENAME', 'TASKSTATUS', 'TASKSTATUSNAME', 'SFZSWTGY_DISPLAY',
                      'SFQWQTXQ_DISPLAY']
         for i in temp_dict:
-            data1.pop(i)
+            data.pop(i)
         #构造要提交的数据包
-        if is_changePath == True:#修改出校路径
-            data1['cxljFormData'] = "[{\"MDDXXDZ\":\"%s\",\"CXJTFS\":\"%s\",\"SEQ\":%d}]" % (config.get("other", "MDDXXDZ"), config.get("other", "CXJTFS"), data2['SEQ'])
+        if is_changePath == True:#修改出校路径及出校理由
+            data['cxljFormData'] = "[{\"MDDXXDZ\":\"%s\",\"CXJTFS\":\"%s\",\"SEQ\":%d}]" % (config.get("other", "MDDXXDZ"), config.get("other", "CXJTFS"), CXLJ['SEQ'])
+            data['CXLY'] = config.get("other", "CXLY")
         else:
-            data1['cxljFormData'] = "[{\"MDDXXDZ\":\"%s\",\"CXJTFS\":\"%s\",\"SEQ\":%d}]" % (data2['MDDXXDZ'], data2['CXJTFS'],data2['SEQ'])
-        data1['ignoreSubTableModify'] = False
-        data1['CREATE_TIME'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())     #创建时间
-        data1['CXKSSJ'] = time.strftime("%Y-%m-%d 00:00:00", time.localtime())
-        data1['CXJSSJ'] = time.strftime("%Y-%m-%d 23:59:00", time.localtime())
-        data1['REPORT_DATE'] = time.strftime("%Y-%m-%d", time.localtime())
+            data['cxljFormData'] = "[{\"MDDXXDZ\":\"%s\",\"CXJTFS\":\"%s\",\"SEQ\":%d}]" % (CXLJ['MDDXXDZ'], CXLJ['CXJTFS'],CXLJ['SEQ'])
+        data['ignoreSubTableModify'] = False
+        data['CREATE_TIME'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())     #创建时间
+        data['CXKSSJ'] = time.strftime("%Y-%m-%d 00:00:00", time.localtime())
+        data['CXJSSJ'] = time.strftime("%Y-%m-%d 23:59:00", time.localtime())
+        data['REPORT_DATE'] = time.strftime("%Y-%m-%d", time.localtime())
+        data['LSH'] = LSH
 
         params = {
-            'formData':data1,
+            'formData':data,
             'sendMessage':'true',
             'id':'start',
             'commandType':'start',
